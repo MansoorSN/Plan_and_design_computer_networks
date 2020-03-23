@@ -1,6 +1,6 @@
 # Plan_and_design_computer_networks
 
-<h2>This repository consists of the ns3 code of the project. 
+This repository consists of the ns3 code of the project. 
 
 
 _In this project we simulate the performance of a bus station hot spot system in the network based on a multi access point scenario. In this scenario we introduce multiple access points depending on the area of coverage of the network. The users are the nodes connected to these access points. The data services are provided by the access points to the nodes connected to it._
