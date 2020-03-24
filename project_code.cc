@@ -24,12 +24,12 @@ using namespace ns3;
 class BusStation
 {
 public:
-    BusStation(bool downlinkUplink, std::string in_modes);
+    BusStation(bool downlinkUplink, std::string in_data_rate);
     void EnableRtsCts(bool enableCtsRts);
     void CreateNode(size_t in_ap, size_t in_nodeNumber, double radius);
     void InitialBusStation();
     void ConfigApplication(size_t in_packetSize, size_t in_dataRate);
-    void Run(size_t in_simTime);
+    void Run(size_t simulatn_time);
     void RxError (std::string context, Ptr<const Packet> packet,    double snr);
     void RxOk (std::string context, Ptr<const Packet> packet,double snr, WifiMode mode, enum WifiPreamble
     preamble);
@@ -47,7 +47,7 @@ private:
 	size_t rx_ok;
 	size_t rx_error;
 	size_t tx_ok;
-	std::string m_modes;
+	std::string m_data_rate;
 	NodeContainer nodes;
 	MobilityHelper mobility;
 	Ptr<ListPositionAllocator> ap_pos;
@@ -62,8 +62,8 @@ private:
 	ApplicationContainer m_cbrApps;
 	ApplicationContainer m_pingApps;
 };
-BusStation::BusStation(bool in_downlinkUplink, std::string in_modes):
-		m_downlinkUplink(in_downlinkUplink), m_modes(in_modes)
+BusStation::BusStation(bool in_downlinkUplink, std::string in_data_rate):
+		m_downlinkUplink(in_downlinkUplink), m_data_rate(in_data_rate)
 {
 	rx_ok = 0;
 	rx_error = 0;
@@ -123,7 +123,7 @@ void BusStation::InstallDevices()
 {
 	m_wifi.SetStandard (WIFI_PHY_STANDARD_80211b);
 	Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue("DsssRate2Mbps"));
-	m_wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode",StringValue (m_modes),"ControlMode",StringValue (m_modes));
+	m_wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode",StringValue (m_data_rate),"ControlMode",StringValue (m_data_rate));
 	wifi_phy_helper = YansWifiPhyHelper::Default ();
 	wifi_phy_helper.SetChannel (wifi_Channel.Create());
 	wifi_phy_helper.Set ("EnergyDetectionThreshold", DoubleValue (-95.0) );
@@ -145,20 +145,20 @@ void BusStation::InstallIp()
 void BusStation::RxError (std::string context, Ptr<const Packet>packet, double snr)
 {
 	Ptr<Packet> m_currentPacket;
-	WifiMacHeader hdr;
+	WifiMacHeader headr;
 	m_currentPacket = packet->Copy();
-	m_currentPacket->RemoveHeader (hdr);
-	if(hdr.IsData()){
+	m_currentPacket->RemoveHeader (headr);
+	if(headr.IsData()){
 		rx_error++;
 	}
 }
 void BusStation::RxOk (std::string context, Ptr<const Packet>packet,double snr, WifiMode mode, enum WifiPreamble preamble)
 {
 	Ptr<Packet> m_currentPacket;
-	WifiMacHeader hdr;
+	WifiMacHeader headr;
 	m_currentPacket = packet->Copy();
-	m_currentPacket->RemoveHeader (hdr);
-	if(hdr.IsData()){
+	m_currentPacket->RemoveHeader (headr);
+	if(headr.IsData()){
 		rx_ok++;
 	}
 }
@@ -166,16 +166,16 @@ void BusStation::TxTrace (std::string context, Ptr<const Packet> packet,WifiMode
 	txPower)
 {
 	Ptr<Packet> m_currentPacket;
-	WifiMacHeader hdr;
+	WifiMacHeader headr;
 	m_currentPacket = packet->Copy();
-	m_currentPacket->RemoveHeader (hdr);
-	if(hdr.IsData()){
+	m_currentPacket->RemoveHeader (headr);
+	if(headr.IsData()){
 		tx_ok++;
 	}
 }
 void BusStation::ConfigApplication(size_t in_packetSize, size_t in_dataRate)
 {
-	uint16_t cbrPort = 12345;
+	uint16_t port = 12345;
 	for(size_t j=1; j<=ap_number; ++j){
 		for(size_t i=ap_number+node_number/ap_number*(j-1);i<ap_number+node_number/ap_number*j ; ++i){
 			std::string s;
@@ -187,7 +187,7 @@ void BusStation::ConfigApplication(size_t in_packetSize, size_t in_dataRate)
 				ss << j;
 			}
 			s = "10.0.0."+ss.str();
-			OnOffHelper onOffHelper ("ns3::UdpSocketFactory",InetSocketAddress (Ipv4Address (s.c_str()), cbrPort));
+			OnOffHelper onOffHelper ("ns3::UdpSocketFactory",InetSocketAddress (Ipv4Address (s.c_str()), port));
 			onOffHelper.SetAttribute ("PacketSize", UintegerValue(in_packetSize));
 			onOffHelper.SetAttribute ("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
 			onOffHelper.SetAttribute ("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
@@ -245,20 +245,20 @@ void BusStation::ConfigApplication(size_t in_packetSize, size_t in_dataRate)
 	}
 }
 
-void BusStation::Run(size_t in_simTime)
+void BusStation::Run(size_t simulatn_time)
 {
 	// 8. Install FlowMonitor on all nodes
-	FlowMonitorHelper flowmon;
-	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+	FlowMonitorHelper flow_mnitor;
+	Ptr<FlowMonitor> monitor = flow_mnitor.InstallAll ();
 	// 9. Run simulation
-	Simulator::Stop (Seconds (in_simTime));
+	Simulator::Stop (Seconds (simulatn_time));
 	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/RxError",	MakeCallback (&BusStation::RxError, this));
 	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/RxOk",	MakeCallback (&BusStation::RxOk, this));
 	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/Tx",	MakeCallback (&BusStation::TxTrace, this));
 	Simulator::Run ();
 	// 10. Print per flow statistics
 	monitor->CheckForLostPackets ();
-	Ptr<Ipv4FlowClassifier> classifier =DynamicCast<Ipv4FlowClassifier>(flowmon.GetClassifier());
+	Ptr<Ipv4FlowClassifier> classifier =DynamicCast<Ipv4FlowClassifier>(flow_mnitor.GetClassifier());
 	std::map<FlowId, FlowMonitor::FlowStats> stats =	monitor->GetFlowStats ();
 	double accumulatedThroughput = 0;
 	for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator
@@ -268,10 +268,10 @@ void BusStation::Run(size_t in_simTime)
 		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
 		std::cout << "Flow " << i->first<< " (" << t.sourceAddress << " ->" << t.destinationAddress << ")\n";
 		
-		std::cout << " Throughput: " << i->second.rxBytes * 8.0 /	in_simTime / 1024/1024 << " Mbps\n";
-		accumulatedThroughput+=(i->second.rxBytes*8.0/in_simTime/1024/1024);
+		std::cout << " Throughput: " << i->second.rxBytes * 8.0 /	simulatn_time / 1024/1024 << " Mbps\n";
+		accumulatedThroughput+=(i->second.rxBytes*8.0/simulatn_time/1024/1024);
 	}
-	std::cout << "apNumber=" <<ap_number << " nodeNumber=" <<node_number << "\n" << std::flush;
+	std::cout << "Access Points=" <<ap_number << " Number of Nodes=" <<node_number << "\n" << std::flush;
 	std::cout << "throughput=" << accumulatedThroughput << "\n" <<std::flush;
 	std::cout << "tx=" << tx_ok << " RXerror=" <<rx_error <<" Rxok=" << rx_ok << "\n" << std::flush;
 	std::cout << "===========================\n" << std::flush;
@@ -289,18 +289,18 @@ void BusStation::Run(size_t in_simTime)
 }
 int main (int argc, char **argv)
 {
-	size_t numOfAp[6] = {1, 2, 3, 4, 5};
+	size_t access_point[6] = {1, 2, 3, 4, 5};
 	double range[4] = {60, 120};
-	std::vector <std::string> modes;
-	modes.push_back ("DsssRate5_5Mbps");
+	std::vector <std::string> data_rate;
+	data_rate.push_back ("DsssRate5_5Mbps");
 	std::cout << "Bus station BusStation :\n" <<std::flush;
 	for(size_t i=0; i<2; ++i){
 		for(size_t m=2;m<3;++m){
 		for(size_t j=0; j<1; ++j){
-				std::cout << "Range=" << range[j] << ", Mode=" << modes[0] <<"\n";
-				BusStation exp(Downlink, modes[0]);
+				std::cout << "Range=" << range[j] << ", DataRate=" << data_rate[0] <<"\n";
+				BusStation exp(Downlink, data_rate[0]);
 				exp.EnableRtsCts(false);
-				exp.CreateNode(numOfAp[i], m, range[j]);
+				exp.CreateNode(access_point[i], m, range[j]);
 				exp.InitialBusStation();
 				exp.ConfigApplication(1024, 5500000);
 				exp.Run(60);
@@ -310,4 +310,12 @@ int main (int argc, char **argv)
 
 return 0;
 }
+
+		
+
+
+
+
+
+
 
