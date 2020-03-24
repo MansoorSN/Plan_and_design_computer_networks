@@ -21,66 +21,62 @@ using namespace ns3;
 #define PI 3.14159265
 #define PI_e5 314158
 
-class Experiment
+class BusStation
 {
 public:
-    Experiment(bool downlinkUplink, std::string in_modes);
-    void SetRtsCts(bool enableCtsRts);
+    BusStation(bool downlinkUplink, std::string in_modes);
+    void EnableRtsCts(bool enableCtsRts);
     void CreateNode(size_t in_ap, size_t in_nodeNumber, double radius);
-    void CreateNode(size_t in_ap, size_t in_nodeNumber);
-    void InitialExperiment();
-    void InstallApplication(size_t in_packetSize, size_t in_dataRate);
-    void Run(size_t in_simTime,size_t m);
-    void PhyRxErrorTrace (std::string context, Ptr<const Packet> packet,
-    double snr);
-    void PhyRxOkTrace (std::string context, Ptr<const Packet> packet,
-    double snr, WifiMode mode, enum WifiPreamble
+    void InitialBusStation();
+    void ConfigApplication(size_t in_packetSize, size_t in_dataRate);
+    void Run(size_t in_simTime);
+    void RxError (std::string context, Ptr<const Packet> packet,    double snr);
+    void RxOk (std::string context, Ptr<const Packet> packet,double snr, WifiMode mode, enum WifiPreamble
     preamble);
-    void PhyTxTrace (std::string context, Ptr<const Packet> packet,
-    WifiMode mode,WifiPreamble preamble, uint8_t txPower);
-	void ShowNodeInformation(NodeContainer in_c, size_t in_numOfNode);
+    void TxTrace (std::string context, Ptr<const Packet> packet, WifiMode mode,WifiPreamble preamble, uint8_t txPower);
+	
 private:
-	void SetWifiChannel();
+	void ConfigWifiChannel();
 	void InstallDevices();
 	void InstallIp();
 	bool m_enableCtsRts;
 	bool m_downlinkUplink;
-	size_t m_apNumber;
-	size_t m_nodeNumber;
-	double m_radius;
-	size_t m_rxOkCount;
-	size_t m_rxErrorCount;
-	size_t m_txOkCount;
-	std::string m_modes;;
-	NodeContainer m_nodes;
-	MobilityHelper m_mobility;
-	Ptr<ListPositionAllocator> m_apPosAlloc;
-	Ptr<ListPositionAllocator> m_nodePosAlloc;
-	YansWifiChannelHelper m_wifiChannel;
+	size_t ap_number;
+	size_t node_number;
+	double radius;
+	size_t rx_ok;
+	size_t rx_error;
+	size_t tx_ok;
+	std::string m_modes;
+	NodeContainer nodes;
+	MobilityHelper mobility;
+	Ptr<ListPositionAllocator> ap_pos;
+	Ptr<ListPositionAllocator> node_pos;
+	YansWifiChannelHelper wifi_Channel;
 	WifiHelper m_wifi;
-	YansWifiPhyHelper m_wifiPhy;
-	WifiMacHelper m_wifiMac;
-	NetDeviceContainer m_devices;
+	YansWifiPhyHelper wifi_phy_helper;
+	WifiMacHelper wifi_Mac;
+	NetDeviceContainer user_devices;
 	InternetStackHelper m_internet;
-	Ipv4AddressHelper m_ipv4;
+	Ipv4AddressHelper p_ipv4;
 	ApplicationContainer m_cbrApps;
 	ApplicationContainer m_pingApps;
 };
-Experiment::Experiment(bool in_downlinkUplink, std::string in_modes):
+BusStation::BusStation(bool in_downlinkUplink, std::string in_modes):
 		m_downlinkUplink(in_downlinkUplink), m_modes(in_modes)
 {
-	m_rxOkCount = 0;
-	m_rxErrorCount = 0;
-	m_txOkCount = 0;
+	rx_ok = 0;
+	rx_error = 0;
+	tx_ok = 0;
 }
 
-void Experiment::InitialExperiment()
+void BusStation::InitialBusStation()
 {
-	SetWifiChannel();
+	ConfigWifiChannel();
 	InstallDevices();
 	InstallIp();
 }
-void Experiment::SetRtsCts(bool in_enableCtsRts)
+void BusStation::EnableRtsCts(bool in_enableCtsRts)
 {
 	m_enableCtsRts = in_enableCtsRts;
 	UintegerValue ctsThr = (m_enableCtsRts ? UintegerValue (10) :
@@ -88,85 +84,85 @@ void Experiment::SetRtsCts(bool in_enableCtsRts)
 	Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold",
 	ctsThr);
 }
-void Experiment::CreateNode(size_t in_ap, size_t in_nodeNumber, double in_radius)
+void BusStation::CreateNode(size_t in_ap, size_t in_nodeNumber, double in_radius)
 {
 	std::cout<<"range : "<<in_radius<<"\n";
-	m_apNumber = in_ap;
-	m_nodeNumber = in_nodeNumber;
-	m_radius = in_radius;
-	m_nodes.Create(m_apNumber+m_nodeNumber);
-	m_mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-	m_mobility.SetMobilityModel ("ns3::ConstantVelocityMobilityModel");
-	m_apPosAlloc = CreateObject<ListPositionAllocator> ();
-	m_nodePosAlloc = CreateObject<ListPositionAllocator> ();
-	for(size_t i=0; i<m_apNumber; ++i){
-		m_apPosAlloc->Add(Vector(m_radius*std::cos(i*2*PI/m_apNumber),
-		m_radius*std::sin(i*2*PI/m_apNumber), 1));
+	ap_number = in_ap;
+	node_number = in_nodeNumber;
+	radius = in_radius;
+	nodes.Create(ap_number+node_number);
+	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+	mobility.SetMobilityModel ("ns3::ConstantVelocityMobilityModel");
+	ap_pos = CreateObject<ListPositionAllocator> ();
+	node_pos = CreateObject<ListPositionAllocator> ();
+	for(size_t i=0; i<ap_number; ++i){
+		ap_pos->Add(Vector(radius*std::cos(i*2*PI/ap_number),
+		radius*std::sin(i*2*PI/ap_number), 1));
 	}
-	m_mobility.SetPositionAllocator(m_apPosAlloc);
-	for(size_t i=0; i<m_apNumber; ++i){
-		m_mobility.Install(m_nodes.Get(i));
+	mobility.SetPositionAllocator(ap_pos);
+	for(size_t i=0; i<ap_number; ++i){
+		mobility.Install(nodes.Get(i));
 	}
-	for(size_t i=0; i<m_nodeNumber; ++i){
-		size_t inAp = i/(m_nodeNumber/m_apNumber);
+	for(size_t i=0; i<node_number; ++i){
+		size_t inAp = i/(node_number/ap_number);
 		double nodeRadius = rand()%120+(rand()%1000)/1000;
-		m_nodePosAlloc->Add(Vector(m_radius*std::cos(inAp*2*PI/m_apNumber)+
-		nodeRadius*std::cos((rand()%(2*PI_e5))/pow(10,5)),m_radius*std::sin(inAp*2*PI/m_apNumber)+nodeRadius*std::sin((rand()%(2*PI_e5))/pow(10,5)),1));
+		node_pos->Add(Vector(radius*std::cos(inAp*2*PI/ap_number)+
+		nodeRadius*std::cos((rand()%(2*PI_e5))/pow(10,5)),radius*std::sin(inAp*2*PI/ap_number)+nodeRadius*std::sin((rand()%(2*PI_e5))/pow(10,5)),1));
 	}
-	m_mobility.SetPositionAllocator(m_nodePosAlloc);
-	for(size_t i=0; i<m_nodeNumber; ++i){
-		m_mobility.Install(m_nodes.Get(m_apNumber+i));
+	mobility.SetPositionAllocator(node_pos);
+	for(size_t i=0; i<node_number; ++i){
+		mobility.Install(nodes.Get(ap_number+i));
 	}
 }
-void  Experiment::SetWifiChannel()
+void  BusStation::ConfigWifiChannel()
 {
-	m_wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-m_wifiChannel.AddPropagationLoss("ns3::TwoRayGroundPropagationLossModel","Frequency", DoubleValue(2.400e9));
+	wifi_Channel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
+wifi_Channel.AddPropagationLoss("ns3::TwoRayGroundPropagationLossModel","Frequency", DoubleValue(2.400e9));
 }
-void Experiment::InstallDevices()
+void BusStation::InstallDevices()
 {
 	m_wifi.SetStandard (WIFI_PHY_STANDARD_80211b);
 	Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue("DsssRate2Mbps"));
 	m_wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode",StringValue (m_modes),"ControlMode",StringValue (m_modes));
-	m_wifiPhy = YansWifiPhyHelper::Default ();
-	m_wifiPhy.SetChannel (m_wifiChannel.Create());
-	m_wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-95.0) );
-	m_wifiPhy.Set ("CcaEdThreshold", DoubleValue (-95.0) );
-	m_wifiPhy.Set ("TxPowerStart", DoubleValue (23.0) );
-	m_wifiPhy.Set ("TxPowerEnd", DoubleValue (23.0) );
-	m_wifiPhy.Set ("ChannelNumber", UintegerValue (1) );
-	m_wifiPhy.Set ("RxGain", DoubleValue (-25.0));
-	WifiMacHelper m_wifiMac;
-	m_wifiMac.SetType ("ns3::AdhocWifiMac"); // use ad-hoc MAC
-	m_devices = m_wifi.Install (m_wifiPhy, m_wifiMac, m_nodes);
+	wifi_phy_helper = YansWifiPhyHelper::Default ();
+	wifi_phy_helper.SetChannel (wifi_Channel.Create());
+	wifi_phy_helper.Set ("EnergyDetectionThreshold", DoubleValue (-95.0) );
+	wifi_phy_helper.Set ("CcaEdThreshold", DoubleValue (-95.0) );
+	wifi_phy_helper.Set ("TxPowerStart", DoubleValue (23.0) );
+	wifi_phy_helper.Set ("TxPowerEnd", DoubleValue (23.0) );
+	wifi_phy_helper.Set ("ChannelNumber", UintegerValue (1) );
+	wifi_phy_helper.Set ("RxGain", DoubleValue (-25.0));
+	WifiMacHelper wifi_Mac;
+	wifi_Mac.SetType ("ns3::AdhocWifiMac"); // use ad-hoc MAC
+	user_devices = m_wifi.Install (wifi_phy_helper, wifi_Mac, nodes);
 }
-void Experiment::InstallIp()
+void BusStation::InstallIp()
 {
-	m_internet.Install (m_nodes);
-	m_ipv4.SetBase ("10.0.0.0", "255.0.0.0");
-	m_ipv4.Assign (m_devices);
+	m_internet.Install (nodes);
+	p_ipv4.SetBase ("10.0.0.0", "255.0.0.0");
+	p_ipv4.Assign (user_devices);
 }
-void Experiment::PhyRxErrorTrace (std::string context, Ptr<const Packet>packet, double snr)
-{
-	Ptr<Packet> m_currentPacket;
-	WifiMacHeader hdr;
-	m_currentPacket = packet->Copy();
-	m_currentPacket->RemoveHeader (hdr);
-	if(hdr.IsData()){
-		m_rxErrorCount++;
-	}
-}
-void Experiment::PhyRxOkTrace (std::string context, Ptr<const Packet>packet,double snr, WifiMode mode, enum WifiPreamble preamble)
+void BusStation::RxError (std::string context, Ptr<const Packet>packet, double snr)
 {
 	Ptr<Packet> m_currentPacket;
 	WifiMacHeader hdr;
 	m_currentPacket = packet->Copy();
 	m_currentPacket->RemoveHeader (hdr);
 	if(hdr.IsData()){
-		m_rxOkCount++;
+		rx_error++;
 	}
 }
-void Experiment::PhyTxTrace (std::string context, Ptr<const Packet> packet,WifiMode mode, WifiPreamble preamble, uint8_t
+void BusStation::RxOk (std::string context, Ptr<const Packet>packet,double snr, WifiMode mode, enum WifiPreamble preamble)
+{
+	Ptr<Packet> m_currentPacket;
+	WifiMacHeader hdr;
+	m_currentPacket = packet->Copy();
+	m_currentPacket->RemoveHeader (hdr);
+	if(hdr.IsData()){
+		rx_ok++;
+	}
+}
+void BusStation::TxTrace (std::string context, Ptr<const Packet> packet,WifiMode mode, WifiPreamble preamble, uint8_t
 	txPower)
 {
 	Ptr<Packet> m_currentPacket;
@@ -174,14 +170,14 @@ void Experiment::PhyTxTrace (std::string context, Ptr<const Packet> packet,WifiM
 	m_currentPacket = packet->Copy();
 	m_currentPacket->RemoveHeader (hdr);
 	if(hdr.IsData()){
-		m_txOkCount++;
+		tx_ok++;
 	}
 }
-void Experiment::InstallApplication(size_t in_packetSize, size_t in_dataRate)
+void BusStation::ConfigApplication(size_t in_packetSize, size_t in_dataRate)
 {
 	uint16_t cbrPort = 12345;
-	for(size_t j=1; j<=m_apNumber; ++j){
-		for(size_t i=m_apNumber+m_nodeNumber/m_apNumber*(j-1);i<m_apNumber+m_nodeNumber/m_apNumber*j ; ++i){
+	for(size_t j=1; j<=ap_number; ++j){
+		for(size_t i=ap_number+node_number/ap_number*(j-1);i<ap_number+node_number/ap_number*j ; ++i){
 			std::string s;
 			std::stringstream ss(s);
 			if(m_downlinkUplink){
@@ -208,19 +204,19 @@ void Experiment::InstallApplication(size_t in_packetSize, size_t in_dataRate)
 			if(m_downlinkUplink){
 				onOffHelper.SetAttribute ("StartTime", TimeValue (Seconds(1.00+static_cast<double>(i)/100)));
 				onOffHelper.SetAttribute ("StopTime", TimeValue (Seconds(50.000+static_cast<double>(i)/100)));
-				m_cbrApps.Add (onOffHelper.Install (m_nodes.Get (j-1)));
+				m_cbrApps.Add (onOffHelper.Install (nodes.Get (j-1)));
 			}else
 			{
 				onOffHelper.SetAttribute ("StartTime", TimeValue (Seconds(1.00)));
 				onOffHelper.SetAttribute ("StopTime", TimeValue (Seconds(50.000+static_cast<double>(j)/100)));
-				m_cbrApps.Add (onOffHelper.Install (m_nodes.Get (i)));
+				m_cbrApps.Add (onOffHelper.Install (nodes.Get (i)));
 			}
 		}
 	}
 	uint16_t echoPort = 9;
 // again using different start times to workaround Bug 388 and Bug 912
-	for(size_t j=1; j<=m_apNumber; ++j){
-		for(size_t i=m_apNumber+m_nodeNumber/m_apNumber*(j-1);i<m_apNumber+m_nodeNumber/m_apNumber*j ; ++i){
+	for(size_t j=1; j<=ap_number; ++j){
+		for(size_t i=ap_number+node_number/ap_number*(j-1);i<ap_number+node_number/ap_number*j ; ++i){
 			std::string s;
 			std::stringstream ss(s);
 			if(m_downlinkUplink){
@@ -238,55 +234,32 @@ void Experiment::InstallApplication(size_t in_packetSize, size_t in_dataRate)
 			if(m_downlinkUplink){
 				echoClientHelper.SetAttribute ("StartTime", TimeValue (Seconds(0.001)));
 				echoClientHelper.SetAttribute ("StopTime", TimeValue (Seconds(50.001)));
-				m_pingApps.Add (echoClientHelper.Install (m_nodes.Get (j-1)));
+				m_pingApps.Add (echoClientHelper.Install (nodes.Get (j-1)));
 			}else
 			{
 				echoClientHelper.SetAttribute ("StartTime", TimeValue (Seconds(0.001)));
 				echoClientHelper.SetAttribute ("StopTime", TimeValue (Seconds(50.001)));
-				m_pingApps.Add (echoClientHelper.Install (m_nodes.Get (i)));
+				m_pingApps.Add (echoClientHelper.Install (nodes.Get (i)));
 			}
 		}
 	}
 }
-void Experiment::ShowNodeInformation(NodeContainer in_c, size_t in_numOfNode)
-{
-	for(size_t i=0; i<in_numOfNode; ++i){
-		Ptr<MobilityModel> mobility = in_c.Get(i)->GetObject<MobilityModel>();
-		Vector nodePos = mobility->GetPosition ();
-		// Get Ipv4 instance of the node
-		Ptr<Ipv4> ipv4 = in_c.Get(i)->GetObject<Ipv4> ();
-		// Get Ipv4 instance of the node
-		Ptr<MacLow> mac48 = in_c.Get(i)->GetObject<MacLow> ();
-		// Get Ipv4InterfaceAddress of xth interface.
-		Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal ();
-		//Mac48Address macAddr = mac48->GetAddress();
-		std::cout << in_c.Get(i)->GetId() << " " << addr << " (" <<
-		nodePos.x << ", " <<
-		nodePos.y << ")" << std::endl;
-	}
-}
-void Experiment::Run(size_t in_simTime, size_t m)
+
+void BusStation::Run(size_t in_simTime)
 {
 	// 8. Install FlowMonitor on all nodes
-	ShowNodeInformation(m_nodes, m_apNumber+m_nodeNumber);
-	std::cout<<"users:"<<m<<"\n";
 	FlowMonitorHelper flowmon;
 	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 	// 9. Run simulation
 	Simulator::Stop (Seconds (in_simTime));
-	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/RxError",
-	MakeCallback (&Experiment::PhyRxErrorTrace, this));
-	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/RxOk",
-	MakeCallback (&Experiment::PhyRxOkTrace, this));
-	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/Tx",
-	MakeCallback (&Experiment::PhyTxTrace, this));
+	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/RxError",	MakeCallback (&BusStation::RxError, this));
+	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/RxOk",	MakeCallback (&BusStation::RxOk, this));
+	Config::Connect ("/NodeList/*/DeviceList/*/Phy/State/Tx",	MakeCallback (&BusStation::TxTrace, this));
 	Simulator::Run ();
 	// 10. Print per flow statistics
 	monitor->CheckForLostPackets ();
-	Ptr<Ipv4FlowClassifier> classifier =
-	DynamicCast<Ipv4FlowClassifier>(flowmon.GetClassifier());
-	std::map<FlowId, FlowMonitor::FlowStats> stats =
-	monitor->GetFlowStats ();
+	Ptr<Ipv4FlowClassifier> classifier =DynamicCast<Ipv4FlowClassifier>(flowmon.GetClassifier());
+	std::map<FlowId, FlowMonitor::FlowStats> stats =	monitor->GetFlowStats ();
 	double accumulatedThroughput = 0;
 	for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator
 	i=stats.begin();
@@ -295,20 +268,20 @@ void Experiment::Run(size_t in_simTime, size_t m)
 		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
 		std::cout << "Flow " << i->first<< " (" << t.sourceAddress << " ->" << t.destinationAddress << ")\n";
 		
-		std::cout << " Throughput: " << i->second.rxBytes * 8.0 /	in_simTime / 1024/1024/1024/1024 << " Mbps\n";
-		accumulatedThroughput+=(i->second.rxBytes*8.0/in_simTime/1024/1024/1024/1024);
+		std::cout << " Throughput: " << i->second.rxBytes * 8.0 /	in_simTime / 1024/1024 << " Mbps\n";
+		accumulatedThroughput+=(i->second.rxBytes*8.0/in_simTime/1024/1024);
 	}
-	std::cout << "apNumber=" <<m_apNumber << " nodeNumber=" <<m_nodeNumber << "\n" << std::flush;
+	std::cout << "apNumber=" <<ap_number << " nodeNumber=" <<node_number << "\n" << std::flush;
 	std::cout << "throughput=" << accumulatedThroughput << "\n" <<std::flush;
-	std::cout << "tx=" << m_txOkCount << " RXerror=" <<m_rxErrorCount <<" Rxok=" << m_rxOkCount << "\n" << std::flush;
+	std::cout << "tx=" << tx_ok << " RXerror=" <<rx_error <<" Rxok=" << rx_ok << "\n" << std::flush;
 	std::cout << "===========================\n" << std::flush;
 	// 11. Cleanup
 	/*AnimationInterface anim("anim2.xml");
-	for(size_t i=0; i< m_apNumber+m_nodeNumber; ++i){
-		Ptr<MobilityModel> mobility = m_nodes.Get(i)->GetObject<MobilityModel>();
+	for(size_t i=0; i< ap_number+node_number; ++i){
+		Ptr<MobilityModel> mobility = nodes.Get(i)->GetObject<MobilityModel>();
 		Vector nodePos = mobility->GetPosition ();
 		std::cout<<"nodes"<<nodePos.x<<" "<<nodePos.y<<"\n";
-		anim.SetConstantPosition(m_nodes.Get(i), nodePos.x, nodePos.y);
+		anim.SetConstantPosition(nodes.Get(i), nodePos.x, nodePos.y);
 
 	}*/
 
@@ -320,29 +293,21 @@ int main (int argc, char **argv)
 	double range[4] = {60, 120};
 	std::vector <std::string> modes;
 	modes.push_back ("DsssRate5_5Mbps");
-	std::cout << "Bus station experiment :\n" <<std::flush;
+	std::cout << "Bus station BusStation :\n" <<std::flush;
 	for(size_t i=0; i<2; ++i){
-		for(size_t m=4;m<5;++m){
+		for(size_t m=2;m<3;++m){
 		for(size_t j=0; j<1; ++j){
 				std::cout << "Range=" << range[j] << ", Mode=" << modes[0] <<"\n";
-				Experiment exp(Downlink, modes[0]);
-				exp.SetRtsCts(false);
+				BusStation exp(Downlink, modes[0]);
+				exp.EnableRtsCts(false);
 				exp.CreateNode(numOfAp[i], m, range[j]);
-				exp.InitialExperiment();
-				exp.InstallApplication(1024, 5500000);
-				exp.Run(60,m);
+				exp.InitialBusStation();
+				exp.ConfigApplication(1024, 5500000);
+				exp.Run(60);
 		}
 		}
 	}
 
 return 0;
 }
-
-		
-
-
-
-
-
-
 
